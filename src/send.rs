@@ -76,9 +76,14 @@ impl NotificationHandle {
     ///
     /// Resolves when the user interacts with or dismisses the notification.
     ///
-    /// Returns [`Error::ResponseTimeout`] if the timeout set via
-    /// [`Notification::timeout`] elapses before the user interacts.
+    /// If a timeout was set via [`Notification::timeout`], the notification is
+    /// automatically removed from the screen when it elapses and this returns
+    /// `Ok(response)` where [`NotificationResponse::is_timed_out`] is `true`.
+    ///
+    /// `UNUserNotificationCenter` has no native TTL; the close is performed
+    /// by this crate calling [`close_delivered`] when the timer fires.
     pub async fn response(self) -> Result<NotificationResponse, Error> {
+        let notification_id = self.notification_id.clone();
         let receiver = self.guard.into_receiver();
 
         if let Some(duration) = self.timeout {
@@ -86,7 +91,8 @@ impl NotificationHandle {
                 async { receiver.await.map_err(|_| Error::NotificationRejected) },
                 async move {
                     futures_timer::Delay::new(duration).await;
-                    Err(Error::ResponseTimeout)
+                    close_delivered(&notification_id).await;
+                    Ok(NotificationResponse::timed_out(notification_id))
                 },
             )
             .await
@@ -385,7 +391,8 @@ pub fn send_and_wait_for_delivery_blocking(
 /// automatically; CLI/Tokio apps should use [`crate::block_on_main`] or [`crate::run_main_loop_while`].
 ///
 /// Timeout is set via [`Notification::timeout`]; `None` means wait indefinitely.
-/// Returns `Err(`[`Error::ResponseTimeout`]`)` if the deadline passes.
+/// If a timeout was set, the notification is auto-closed when it elapses and
+/// the response has [`NotificationResponse::is_timed_out`] set to `true`.
 pub async fn send_with_actions(notification: Notification) -> Result<NotificationResponse, Error> {
     check_bundle()?;
 
@@ -414,7 +421,8 @@ pub async fn send_with_actions(notification: Notification) -> Result<Notificatio
 /// **Background thread**: blocks and expects the main thread to already be pumping
 /// `NSRunLoop` (`AppKit`, `SwiftUI`, or [`crate::run_main_loop_while`]).
 ///
-/// Returns `Err(`[`Error::ResponseTimeout`]`)` if deadline passes.
+/// If a timeout was set, the notification is auto-closed when it elapses and
+/// the response has [`NotificationResponse::is_timed_out`] set to `true`.
 pub fn send_with_actions_blocking(
     notification: Notification,
 ) -> Result<NotificationResponse, Error> {

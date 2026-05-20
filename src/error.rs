@@ -9,10 +9,4 @@ pub enum Error {
     /// macOS rejected the request.
     #[error("macOS rejected the notification request")]
     NotificationRejected,
-
-    /// Timeout waiting for user interaction.
-    ///
-    /// (e.g. "Clear All" in Notification Center, or timeout elapsed).
-    #[error("Timed out waiting for notification response")]
-    ResponseTimeout,
 }

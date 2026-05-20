@@ -115,11 +115,8 @@ define_class!(
                 .expect("pending map poisoned")
                 .remove(&request_id)
             {
-                let resp = NotificationResponse {
-                    notification_id: request_id.clone(),
-                    action_identifier: action_id,
-                    reply_text,
-                };
+                let resp =
+                    NotificationResponse::from_objc(request_id.clone(), action_id, reply_text);
                 if tx.send(resp).is_err() {
                     log::warn!(
                         "receiver for request {request_id:?} \

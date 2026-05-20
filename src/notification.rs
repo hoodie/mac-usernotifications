@@ -94,10 +94,16 @@ impl Notification {
         self
     }
 
-    /// Set timeout for user interaction (action buttons only).
+    /// Automatically close the notification after `duration` if the user has not
+    /// interacted with it yet.
     ///
-    /// Returns [`Error::ResponseTimeout`] if deadline passes. Without a timeout,
-    /// "Clear All" in Notification Center causes indefinite wait.
+    /// When the timer fires, the notification banner is removed from the screen
+    /// and [`NotificationHandle::response`](crate::send::NotificationHandle::response)
+    /// resolves with `Ok(response)` where
+    /// [`NotificationResponse::is_timed_out`](crate::NotificationResponse::is_timed_out)
+    /// returns `true`.
+    ///
+    /// Without a timeout, "Clear All" in Notification Center causes an indefinite wait.
     pub fn timeout(mut self, duration: Duration) -> Self {
         self.action_timeout = Some(duration);
         self

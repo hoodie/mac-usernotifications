@@ -46,7 +46,6 @@ async fn run() {
     if response.is_default_action() {
         log::info!("ℹ️ notification 2 closed via default action");
     }
-
     if response.is_dismiss_action() {
         log::info!("ℹ️ notification 2 dismissed");
     }

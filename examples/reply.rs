@@ -27,9 +27,11 @@ fn main() {
         if response.is_default_action() {
             log::info!("ℹ️ notification closed via default action");
         }
-
         if response.is_dismiss_action() {
             log::info!("ℹ️ notification dismissed");
+        }
+        if let Some(text) = &response.reply_text {
+            log::info!("ℹ️ reply: {text:?}");
         }
         log::info!("ℹ️ response {response:#?}");
     });

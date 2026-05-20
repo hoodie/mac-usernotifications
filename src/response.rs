@@ -9,6 +9,24 @@ use objc2_user_notifications::{
     UNNotificationDefaultActionIdentifier, UNNotificationDismissActionIdentifier,
 };
 
+/// Why a notification was closed without an explicit user action.
+///
+/// Carried by [`NotificationResponse::close_reason`]. A `None` value means the
+/// user took an active action (clicked the body, pressed a button, or submitted
+/// a reply).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CloseReason {
+    /// The notification timed out and was removed by this crate.
+    ///
+    /// Produced when the duration set via
+    /// [`Notification::timeout`](crate::Notification::timeout) elapses.
+    Expired,
+
+    /// The user explicitly dismissed the notification (e.g. swiped it away
+    /// or pressed "Clear" in Notification Center).
+    Dismissed,
+}
+
 /// What the user did with a notification.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NotificationResponse {
@@ -38,27 +56,27 @@ pub struct NotificationResponse {
     ///
     /// [`is_reply`]: NotificationResponse::is_reply
     pub reply_text: Option<String>,
+
+    /// Why the notification was closed passively, or `None` if the user took
+    /// an explicit action.
+    ///
+    /// Check [`CloseReason::Expired`] to detect a timeout auto-close, or
+    /// [`CloseReason::Dismissed`] for a user-initiated swipe/clear.
+    pub close_reason: Option<CloseReason>,
 }
 
-/// Returns the dismiss action identifier string.
-///
-/// The result is computed once and cached for the lifetime of the process.
-/// The statics are `extern "C"` symbols — reading them requires `unsafe`, so
-/// we isolate that here.
+/// Returns the dismiss action identifier string, cached for the process lifetime.
 fn dismiss_action_id() -> &'static str {
     static CACHED: OnceLock<String> = OnceLock::new();
     CACHED.get_or_init(|| {
         // SAFETY: `UNNotificationDismissActionIdentifier` is a valid, non-null
         // `NSString` backed by a well-known Apple framework constant that lives
-        // for the lifetime of the process.  Reading an `extern "C"` static
-        // requires `unsafe` in Rust; the value itself is sound to use.
+        // for the lifetime of the process.
         unsafe { UNNotificationDismissActionIdentifier.to_string() }
     })
 }
 
-/// Returns the default action identifier string.
-///
-/// See [`dismiss_action_id`] for the rationale.
+/// Returns the default action identifier string, cached for the process lifetime.
 fn default_action_id() -> &'static str {
     static CACHED: OnceLock<String> = OnceLock::new();
     CACHED.get_or_init(|| {
@@ -68,16 +86,45 @@ fn default_action_id() -> &'static str {
 }
 
 impl NotificationResponse {
-    /// Construct a synthetic dismissed response for a notification with the given ID.
-    ///
-    /// Used for fire-and-forget (no-action) notifications where the caller still
-    /// needs the auto-generated UUID back.
-    pub fn dismissed(notification_id: String) -> Self {
+    /// Build a response from raw macOS delegate data.
+    pub(crate) fn from_objc(
+        notification_id: String,
+        action_id: String,
+        reply_text: Option<String>,
+    ) -> Self {
+        let close_reason = if action_id == dismiss_action_id() {
+            Some(CloseReason::Dismissed)
+        } else {
+            None
+        };
         Self {
             notification_id,
-            action_identifier: dismiss_action_id().to_owned(),
-            reply_text: None,
+            action_identifier: action_id,
+            reply_text,
+            close_reason,
         }
+    }
+
+    /// Construct a synthetic timed-out response for a notification with the given ID.
+    ///
+    /// Used internally when the caller's timeout elapses and the notification
+    /// is removed via [`close_delivered`](crate::close_delivered).
+    pub(crate) fn timed_out(notification_id: String) -> Self {
+        Self {
+            notification_id,
+            action_identifier: String::new(),
+            reply_text: None,
+            close_reason: Some(CloseReason::Expired),
+        }
+    }
+
+    /// Returns `true` if the notification was automatically closed because the
+    /// timeout set via [`Notification::timeout`](crate::Notification::timeout) elapsed.
+    ///
+    /// When this returns `true` the notification banner has already been removed
+    /// from the screen by the time the future resolves.
+    pub fn is_timed_out(&self) -> bool {
+        self.close_reason == Some(CloseReason::Expired)
     }
 
     /// Returns `true` if the user clicked the notification body (default action).
@@ -91,7 +138,7 @@ impl NotificationResponse {
     ///
     /// Corresponds to [`UNNotificationDismissActionIdentifier`](https://developer.apple.com/documentation/usernotifications/unnotificationdismissactionidentifier).
     pub fn is_dismiss_action(&self) -> bool {
-        self.action_identifier == dismiss_action_id()
+        self.close_reason == Some(CloseReason::Dismissed)
     }
 
     /// Returns `true` if the user submitted text via a reply action.

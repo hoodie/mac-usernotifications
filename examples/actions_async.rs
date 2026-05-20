@@ -1,4 +1,4 @@
-use mac_usernotifications::{Action, Error, Notification, block_on_main, request_auth};
+use mac_usernotifications::{Action, Notification, block_on_main, request_auth};
 
 mod common;
 use common::notify_back;
@@ -77,8 +77,8 @@ async fn notification_1() -> Result<(), Box<dyn std::error::Error>> {
             log::warn!("deleted");
             notify_back("Deleted 🗑", "Message deleted.").await;
         }
+        Ok(response) if response.is_timed_out() => log::warn!("notification 1 timed out"),
         Ok(response) => log::warn!("unknown action: {}", response.action_identifier),
-        Err(Error::ResponseTimeout) => log::warn!("notification 1 timed out"),
         Err(error) => log::error!("notification 1 error: {error}"),
     }
     Ok(())
@@ -116,8 +116,8 @@ async fn notification_2() -> Result<(), Box<dyn std::error::Error>> {
         Ok(response) if response.is_default_action() => {
             log::warn!("opened standup notification");
         }
+        Ok(response) if response.is_timed_out() => log::warn!("notification 2 timed out"),
         Ok(response) => log::warn!("unknown action: {}", response.action_identifier),
-        Err(Error::ResponseTimeout) => log::warn!("notification 2 timed out"),
         Err(error) => log::error!("notification 2 error: {error}"),
     }
     Ok(())

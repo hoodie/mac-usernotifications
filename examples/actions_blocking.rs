@@ -52,11 +52,11 @@ fn main() {
             log::warn!("user chose: discard");
             notify_back("Discarded", "report-2026-05.pdf was deleted.");
         }
+        Ok(response) if response.is_timed_out() => {
+            log::warn!("timed out waiting for user response");
+        }
         Ok(response) => {
             log::warn!("unknown action: {}", response.action_identifier);
-        }
-        Err(mac_usernotifications::Error::ResponseTimeout) => {
-            log::warn!("timed out waiting for user response");
         }
         Err(error) => {
             log::error!("error: {error}");

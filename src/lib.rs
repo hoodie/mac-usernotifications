@@ -143,7 +143,7 @@ pub use crate::{
     error::Error,
     interrupt::InterruptionLevel,
     notification::Notification,
-    response::NotificationResponse,
+    response::{CloseReason, NotificationResponse},
     send::{
         NotificationHandle, cancel_pending, cancel_pending_blocking, close_delivered,
         close_delivered_blocking, get_delivered_notification_ids, get_pending_notification_ids,
