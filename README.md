@@ -2,6 +2,14 @@
 
 # mac-usernotifications
 
+[![Build](https://github.com/hoodie/mac-usernotifications/actions/workflows/build.yml/badge.svg)](https://github.com/hoodie/mac-usernotifications/actions/workflows/build.yml)
+[![Semver Checks](https://github.com/hoodie/mac-usernotifications/actions/workflows/semver-checks.yml/badge.svg)](https://github.com/hoodie/mac-usernotifications/actions/workflows/semver-checks.yml)
+![maintenance](https://img.shields.io/maintenance/yes/2027)
+
+[![Crates.io](https://img.shields.io/crates/d/mac-usernotifications)](https://crates.io/crates/mac-usernotifications)
+[![version](https://img.shields.io/crates/v/mac-usernotifications)](https://crates.io/crates/mac-usernotifications/)
+[![documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://docs.rs/mac-usernotifications/)
+
 </div>
 
 A wrapper around macOS [`UNUserNotificationCenter`](https://developer.apple.com/documentation/usernotifications/unusernotificationcenter) in Rust.
