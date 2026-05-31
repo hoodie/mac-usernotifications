@@ -1,4 +1,4 @@
-use crate::{Error, Sound, action::Action, check_bundle, interrupt::InterruptionLevel};
+use crate::{Error, action::Action, check_bundle, interrupt::InterruptionLevel};
 
 use objc2_foundation::NSString;
 use objc2_user_notifications::UNMutableNotificationContent;
@@ -25,7 +25,7 @@ pub struct Notification {
     pub(crate) title: String,
     pub(crate) body: String,
     pub(crate) subtitle: Option<String>,
-    pub(crate) sound: Option<Sound>,
+    pub(crate) sound: Option<String>,
     pub(crate) actions: Vec<Action>,
 
     /// Timeout for user interaction (actionable notifications only).
@@ -111,18 +111,18 @@ impl Notification {
 
     /// Play the default system sound.
     pub fn default_sound(mut self) -> Self {
-        self.sound = Some(Sound::Default);
+        self.sound = Some("".to_string());
         self
     }
 
     /// Play a named sound from the app bundle or system library.
-    pub fn sound<S: Into<Sound>>(mut self, sound: S) -> Self {
+    pub fn sound<S: Into<String>>(mut self, sound: S) -> Self {
         self.sound = Some(sound.into());
         self
     }
 
     /// Play a named sound from the app bundle or system library, if present.
-    pub fn maybe_sound<S: Into<Sound>>(mut self, sound: Option<S>) -> Self {
+    pub fn maybe_sound<S: Into<String>>(mut self, sound: Option<S>) -> Self {
         if let Some(sound) = sound {
             self.sound = Some(sound.into());
         }
@@ -206,11 +206,7 @@ impl Notification {
         }
 
         if let Some(sound) = self.sound {
-            if let Some(name) = sound.sound_name() {
-                content.setSound(Sound::unnotificationsound(name).as_deref());
-            } else {
-                content.setSound(Sound::Default.to_unnotificationsound().as_deref());
-            }
+            content.setSound(crate::sound::unnotificationsound(&sound).as_deref());
         }
 
         if let Some(ref path) = self.image_path {
@@ -298,7 +294,7 @@ pub(crate) struct NotificationContent {
 
 #[cfg(test)]
 mod test_notification_builder {
-    use crate::Sound;
+    use crate::sound;
 
     use super::Notification;
 
@@ -314,7 +310,7 @@ mod test_notification_builder {
     fn maybe_sound_sets_when_some_skips_when_none() {
         let with = Notification::new().maybe_sound(Some("Funk"));
         let without = Notification::new().maybe_sound(Option::<&str>::None);
-        assert_eq!(with.sound, Some(Sound::Funk));
+        assert_eq!(with.sound, Some(sound::FUNK.into()));
         assert!(without.sound.is_none());
     }
 
@@ -324,6 +320,6 @@ mod test_notification_builder {
         // A naive impl that always produces Custom would pass string equality
         // checks but fail here.
         let notif = Notification::new().sound("Basso");
-        assert_eq!(notif.sound, Some(Sound::Basso));
+        assert_eq!(notif.sound, Some(sound::BASSO.into()));
     }
 }

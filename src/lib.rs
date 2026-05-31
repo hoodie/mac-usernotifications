@@ -128,7 +128,7 @@ mod interrupt;
 mod notification;
 mod send;
 mod settings;
-mod sound;
+pub mod sound;
 mod worker;
 
 pub mod action;
@@ -146,7 +146,6 @@ pub use crate::{
         get_pending_notification_ids, send, send_with_actions,
     },
     settings::{AuthorizationStatus, NotificationSettingStatus, NotificationSettings},
-    sound::Sound,
 };
 
 #[cfg(feature = "blocking-wrappers")]
