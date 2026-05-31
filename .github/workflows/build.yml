@@ -11,6 +11,10 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
+        feature:
+          - default
+          - blocking-wrappers
+          - ""
         rust:
           - stable
           - beta
@@ -23,11 +27,11 @@ jobs:
           toolchain: ${{ matrix.rust }}
           components: clippy, rustfmt
 
-      - name: check (default features)
-        run: cargo check
+      - name: check (features "${{matrix.feature}}")
+        run: cargo check --no-default-features --features "${{matrix.feature}}"
 
-      - name: test (default features)
-        run: cargo test --no-run
+      - name: test (features "${{matrix.feature}}")
+        run: cargo test --no-run --features "${{matrix.feature}}"
 
-      - name: clippy (default features)
+      - name: clippy (features "${{matrix.feature}}")
         run: cargo clippy -- -D warnings
