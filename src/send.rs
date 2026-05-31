@@ -111,6 +111,14 @@ impl NotificationHandle {
         if objc2::MainThreadMarker::new().is_some() {
             super::block_on_main(self.response())
         } else {
+            if !crate::main_thread_is_pumping() {
+                log::warn!(
+                    "response_blocking called from a background thread but the main \
+                     NSRunLoop does not appear to be running. The call may hang \
+                     indefinitely. See `run_main_loop_while` / `block_on_main` in the \
+                     crate docs, or set a timeout via `Notification::timeout`."
+                );
+            }
             future::block_on(self.response())
         }
     }
@@ -166,6 +174,7 @@ fn schedule_inner(
             trigger_obj.as_deref().map(|val| &**val),
         );
 
+        // `RcBlock` closures satisfy `Fn`/`FnMut`, so we can't move a non-`Clone` `oneshot::Sender` in directly. `Cell<Option<_>>` lets us take it out once.
         let scheduled_tx = Cell::new(Some(scheduled_tx));
         let block = RcBlock::new(move |err: *mut NSError| {
             log::debug!("completion handler fired (err.is_null={})", err.is_null());
@@ -436,6 +445,17 @@ pub fn send_with_actions_blocking(
     if objc2::MainThreadMarker::new().is_some() {
         super::block_on_main(send_with_actions(notification))
     } else {
+        // Called from a background thread: same caveat as `response_blocking`.
+        // The OS delivers `didReceiveNotificationResponse` on the main run loop,
+        // so if nothing is pumping it this call will hang indefinitely.
+        if !crate::main_thread_is_pumping() {
+            log::warn!(
+                "send_with_actions_blocking called from a background thread but the \
+                 main NSRunLoop does not appear to be running. The call may hang \
+                 indefinitely. See `run_main_loop_while` / `block_on_main` in the \
+                 crate docs, or set a timeout via `Notification::timeout`."
+            );
+        }
         future::block_on(send_with_actions(notification))
     }
 }

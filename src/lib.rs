@@ -121,6 +121,10 @@
 use objc2_foundation::{NSBundle, NSDate, NSDefaultRunLoopMode, NSRunLoop};
 use std::future::Future;
 
+pub(crate) fn main_thread_is_pumping() -> bool {
+    objc2_core_foundation::CFRunLoop::main().is_some_and(|run_loop| run_loop.is_waiting())
+}
+
 mod auth;
 mod delegate;
 mod error;
