@@ -11,14 +11,14 @@
 //! # Quick start
 //!
 //! ```no_run
-//! # use mac_usernotifications::{Action, Notification, check_bundle, request_auth_blocking};
+//! # use mac_usernotifications::{Action, blocking, Notification, check_bundle};
 //! # use std::time::Duration;
 //! # fn main() {
 //! // 1. verify the process has a bundle identifier
 //! check_bundle().unwrap();
 //!
 //! // 2. verify user gave permission
-//! request_auth_blocking().unwrap();
+//! blocking::request_auth().unwrap();
 //!
 //! // 3a. fire-and-forgeta (handle.notification_id() has the UUID for later use)
 //! let handle = Notification::new()
@@ -136,23 +136,36 @@ pub mod response;
 
 pub use crate::{
     action::Action,
-    auth::{
-        get_notification_settings, get_notification_settings_blocking, request_auth,
-        request_auth_blocking,
-    },
+    auth::{get_notification_settings, request_auth},
     error::Error,
     interrupt::InterruptionLevel,
     notification::Notification,
     response::{CloseReason, NotificationResponse},
     send::{
-        NotificationHandle, cancel_pending, cancel_pending_blocking, close_delivered,
-        close_delivered_blocking, get_delivered_notification_ids, get_pending_notification_ids,
-        send, send_and_wait_for_delivery, send_and_wait_for_delivery_blocking, send_blocking,
-        send_with_actions, send_with_actions_blocking,
+        NotificationHandle, cancel_pending, close_delivered, get_delivered_notification_ids,
+        get_pending_notification_ids, send, send_with_actions,
     },
     settings::{AuthorizationStatus, NotificationSettingStatus, NotificationSettings},
     sound::Sound,
 };
+
+#[cfg(feature = "blocking-wrappers")]
+pub mod blocking {
+    //! Blocking wrappers for the notification API.
+    pub use crate::{
+        auth::{
+            get_notification_settings_blocking as get_notification_settings,
+            request_auth_blocking as request_auth,
+        },
+        send::{
+            cancel_pending_blocking as cancel_pending, close_delivered_blocking as close_delivered,
+            send_blocking as send, send_with_actions_blocking as send_with_actions,
+        },
+    };
+}
+
+#[cfg(feature = "blocking-wrappers")]
+pub use futures_lite::future::block_on;
 
 /// Pump the main thread's [`NSRunLoop`](https://developer.apple.com/documentation/foundation/nsrunloop) until `should_continue` returns `false`.
 ///

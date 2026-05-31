@@ -4,10 +4,10 @@ use objc2_user_notifications::{UNAuthorizationStatus, UNNotificationSetting};
 
 /// The app's authorization to post notifications.
 ///
-/// Returned by [`get_notification_settings`] and [`get_notification_settings_blocking`].
+/// Returned by [`get_notification_settings`] and [`blocking::get_notification_settings`].
 ///
 /// [`get_notification_settings`]: crate::get_notification_settings
-/// [`get_notification_settings_blocking`]: crate::get_notification_settings_blocking
+/// [`blocking::get_notification_settings`]: crate::blocking::get_notification_settings
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AuthorizationStatus {
     /// The user has not made a choice yet.
@@ -63,10 +63,10 @@ impl From<UNNotificationSetting> for NotificationSettingStatus {
 
 /// The current notification settings for the app.
 ///
-/// Obtained via [`get_notification_settings`] or [`get_notification_settings_blocking`].
+/// Obtained via [`get_notification_settings`] or [`blocking::get_notification_settings`].
 ///
 /// [`get_notification_settings`]: crate::get_notification_settings
-/// [`get_notification_settings_blocking`]: crate::get_notification_settings_blocking
+/// [`blocking::get_notification_settings`]: crate::blocking::get_notification_settings
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NotificationSettings {
     /// Whether the app is authorized to post notifications.

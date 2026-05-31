@@ -279,6 +279,7 @@ impl Notification {
     ///
     /// Call [`.response_blocking()`](crate::send::NotificationHandle::response_blocking)
     /// on the handle to then block waiting for the user, or drop it to ignore the response.
+    #[cfg(feature = "blocking-wrappers")]
     pub fn send_blocking(self) -> Result<crate::send::NotificationHandle, Error> {
         use crate::send::send_and_wait_for_delivery_blocking;
         check_bundle()?;

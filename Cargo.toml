@@ -16,6 +16,11 @@ readme = "README.md"
 
 include = ["Cargo.toml", "README.md", "src/*.rs", "examples/"]
 
+
+[features]
+default = ["blocking-wrappers"]
+blocking-wrappers = []
+
 [package.metadata.docs.rs]
 targets = ["aarch64-apple-darwin"]
 

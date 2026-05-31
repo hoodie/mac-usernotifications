@@ -106,6 +106,7 @@ impl NotificationHandle {
     /// **Main thread:** pumps `NSRunLoop` between polls so callbacks fire.
     /// **Background thread:** blocks and expects the main thread to already be
     /// pumping `NSRunLoop`.
+    #[cfg(feature = "blocking-wrappers")]
     pub fn response_blocking(self) -> Result<NotificationResponse, Error> {
         if objc2::MainThreadMarker::new().is_some() {
             super::block_on_main(self.response())
@@ -199,6 +200,7 @@ fn schedule_inner(
 ///
 /// Fire-and-forget: dispatched to the worker thread, returns immediately.
 /// Has no effect if the identifier is unknown.
+#[cfg(feature = "blocking-wrappers")]
 pub fn close_delivered_blocking(notification_id: &str) {
     let id = notification_id.to_owned();
     worker::dispatch(move || {
@@ -213,6 +215,7 @@ pub fn close_delivered_blocking(notification_id: &str) {
 ///
 /// Fire-and-forget: dispatched to the worker thread, returns immediately.
 /// Has no effect if the identifier is unknown or already delivered.
+#[cfg(feature = "blocking-wrappers")]
 pub fn cancel_pending_blocking(notification_id: &str) {
     let id = notification_id.to_owned();
     worker::dispatch(move || {
@@ -331,6 +334,7 @@ pub async fn send(notification: Notification) -> Result<String, Error> {
 /// Returns the notification's request ID on success. See [`send`] for details.
 ///
 /// Prefer [`Notification::send_blocking`] for the high-level two-phase API.
+#[cfg(feature = "blocking-wrappers")]
 pub fn send_blocking(notification: Notification) -> Result<String, Error> {
     check_bundle()?;
     let request_id = notification
@@ -369,6 +373,7 @@ pub async fn send_and_wait_for_delivery(
 }
 
 /// Blocking variant of [`send_and_wait_for_delivery`].
+#[cfg(feature = "blocking-wrappers")]
 pub fn send_and_wait_for_delivery_blocking(
     notification: Notification,
 ) -> Result<NotificationHandle, Error> {
@@ -423,6 +428,7 @@ pub async fn send_with_actions(notification: Notification) -> Result<Notificatio
 ///
 /// If a timeout was set, the notification is auto-closed when it elapses and
 /// the response has [`NotificationResponse::is_timed_out`] set to `true`.
+#[cfg(feature = "blocking-wrappers")]
 pub fn send_with_actions_blocking(
     notification: Notification,
 ) -> Result<NotificationResponse, Error> {

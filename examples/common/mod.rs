@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 
-use mac_usernotifications::{Notification, check_bundle, request_auth_blocking};
+use mac_usernotifications::{Notification, blocking, check_bundle};
 
+/// Sets up logging and checks the bundle for the example.
 pub fn setup(example_file: &str) -> bool {
     let example_name = std::path::PathBuf::from(example_file)
         .file_stem()
@@ -23,7 +24,7 @@ pub fn setup(example_file: &str) -> bool {
 
     log::info!("{example_name} example: starting");
 
-    match request_auth_blocking() {
+    match blocking::request_auth() {
         Ok(true) => {
             println!("Notification permission granted.");
             true

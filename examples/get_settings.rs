@@ -1,8 +1,6 @@
 mod common;
 
-use mac_usernotifications::{
-    NotificationSettings, check_bundle, get_notification_settings_blocking,
-};
+use mac_usernotifications::{NotificationSettings, blocking, check_bundle};
 
 fn main() {
     // We can check settings even before requesting auth, but we still need a bundle.
@@ -18,7 +16,7 @@ fn main() {
 
     log::info!("get_settings example: starting");
 
-    match get_notification_settings_blocking() {
+    match blocking::get_notification_settings() {
         Ok(settings) => {
             let NotificationSettings {
                 authorization_status,
