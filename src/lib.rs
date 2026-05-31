@@ -54,7 +54,7 @@
 //!
 //! ## GUI apps (`AppKit` / `SwiftUI` / Tauri)
 //!
-//! The framework drives the main run loop automatically. Both `send_async` and `send_blocking` work from any thread without extra setup.
+//! The framework drives the main run loop automatically. Both `send` and `send_blocking` work from any thread without extra setup.
 //!
 //! ## CLI tools
 //!
@@ -82,7 +82,7 @@
 //! let done2 = done.clone();
 //!
 //! rt.spawn(async move {
-//!     // ... your async code, using send_async() etc. ...
+//!     // ... your async code, using send() etc. ...
 //!     done2.store(true, Ordering::Release);
 //! });
 //!

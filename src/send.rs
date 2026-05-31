@@ -313,7 +313,7 @@ pub fn get_delivered_notification_ids() -> impl Future<Output = Vec<String>> + S
 /// request is accepted by macOS. The ID can be used with [`close_delivered`] or
 /// [`cancel_pending`] even when no explicit ID was set via [`Notification::id`].
 ///
-/// Prefer [`Notification::send_async`] for the high-level two-phase API.
+/// Prefer [`Notification::send`] for the high-level two-phase API.
 pub async fn send(notification: Notification) -> Result<String, Error> {
     check_bundle()?;
     let request_id = notification
@@ -383,7 +383,7 @@ pub fn send_and_wait_for_delivery_blocking(
 /// Schedule an actionable notification and wait for the user's response.
 ///
 /// This collapses both phases (delivery + response) into one call. For the split
-/// two-phase API, use [`Notification::send_async`] followed by
+/// two-phase API, use [`Notification::send`] followed by
 /// [`NotificationHandle::response`] instead.
 ///
 /// `UNUserNotificationCenter` always delivers callbacks on the main thread's run loop.

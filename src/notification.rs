@@ -160,7 +160,7 @@ impl Notification {
     /// displayed notification with that ID. Useful for updating live statuses
     /// (e.g. a progress indicator or a changing score).
     ///
-    /// If not set, a fresh UUID is generated per [`send`](Self::send_async).
+    /// If not set, a fresh UUID is generated per [`send`](Self::send).
     pub fn id(mut self, id: &str) -> Self {
         self.notification_id = Some(id.to_owned());
         self
@@ -258,7 +258,7 @@ impl Notification {
 
 /// Sending
 impl Notification {
-    /// Send the notification and return a [`NotificationHandle`] once it is delivered.
+    /// Send the notification and return a [`NotificationHandle`](`crate::NotificationHandle`) once it is delivered.
     ///
     /// The future resolves as soon as macOS accepts the notification request.
     /// Call [`.response().await`](crate::send::NotificationHandle::response) on the handle to wait for the user's interaction,
@@ -275,7 +275,7 @@ impl Notification {
         send_and_wait_for_delivery(self).await
     }
 
-    /// Send the notification, blocking until delivered, then return a [`NotificationHandle`].
+    /// Send the notification, blocking until delivered, then return a [`NotificationHandle`](`crate::NotificationHandle`).
     ///
     /// Call [`.response_blocking()`](crate::send::NotificationHandle::response_blocking)
     /// on the handle to then block waiting for the user, or drop it to ignore the response.
