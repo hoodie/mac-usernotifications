@@ -20,6 +20,10 @@ fn request_auth_inner() -> impl Future<Output = Result<bool, Error>> + Send + 's
     worker::dispatch(move || {
         log::debug!("closure entered on worker");
         let center = UNUserNotificationCenter::currentNotificationCenter();
+        // `RcBlock` requires a `move` closure that is potentially callable more than once,
+        // so we cannot move a non-`Clone` `oneshot::Sender` directly into the block.
+        // Wrapping it in `Cell<Option<_>>` lets us take it out exactly once on the
+        // first (and only real) invocation while still satisfying the `Fn`/`FnMut` bound.
         let tx = Cell::new(Some(tx));
         let block = RcBlock::new(move |granted: Bool, err: *mut objc2_foundation::NSError| {
             log::debug!(
