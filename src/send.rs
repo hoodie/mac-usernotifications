@@ -11,7 +11,7 @@ use futures_channel::oneshot;
 use futures_lite::future;
 use objc2_foundation::{NSArray, NSError, NSString, NSUUID};
 use objc2_user_notifications::{UNNotification, UNNotificationRequest, UNUserNotificationCenter};
-use std::{cell::Cell, fmt, future::Future, ptr::NonNull, time::Duration};
+use std::{fmt, future::Future, ptr::NonNull, time::Duration};
 
 /// Couples a `request_id` to a response receiver, auto-deregistering on drop.
 struct PendingGuard {
@@ -130,7 +130,7 @@ fn schedule_inner(
     response_tx: Option<oneshot::Sender<NotificationResponse>>,
     request_id: String,
 ) -> impl Future<Output = Result<(), Error>> + Send + 'static {
-    let (scheduled_tx, scheduled_rx) = oneshot::channel::<Result<(), Error>>();
+    let (scheduled_tx, scheduled_rx) = worker::sender::<Result<(), Error>>();
 
     worker::dispatch(move || {
         let NotificationContent {
@@ -174,28 +174,23 @@ fn schedule_inner(
             trigger_obj.as_deref().map(|val| &**val),
         );
 
-        // `RcBlock` closures satisfy `Fn`/`FnMut`, so we can't move a non-`Clone` `oneshot::Sender` in directly. `Cell<Option<_>>` lets us take it out once.
-        let scheduled_tx = Cell::new(Some(scheduled_tx));
-        let block = RcBlock::new(move |err: *mut NSError| {
-            log::debug!("completion handler fired (err.is_null={})", err.is_null());
-            if let Some(err) = NonNull::new(err).map(|ptr| unsafe { ptr.as_ref() }) {
-                let desc = err.localizedDescription();
-                log::error!("notification request rejected: {desc}");
-            }
-            if let Some(tx) = scheduled_tx.take() {
-                let result = if err.is_null() {
-                    Ok(())
-                } else {
-                    Err(Error::NotificationRejected)
-                };
-                if tx.send(result).is_err() {
-                    log::warn!("scheduled_rx was already dropped");
-                }
-            }
-        });
-
         UNUserNotificationCenter::currentNotificationCenter()
-            .addNotificationRequest_withCompletionHandler(&request, Some(&block));
+            .addNotificationRequest_withCompletionHandler(
+                &request,
+                Some(&RcBlock::new(move |err: *mut NSError| {
+                    log::debug!("completion handler fired (err.is_null={})", err.is_null());
+                    if let Some(err) = NonNull::new(err).map(|ptr| unsafe { ptr.as_ref() }) {
+                        let desc = err.localizedDescription();
+                        log::error!("notification request rejected: {desc}");
+                    }
+                    let result = if err.is_null() {
+                        Ok(())
+                    } else {
+                        Err(Error::NotificationRejected)
+                    };
+                    scheduled_tx.send(result);
+                })),
+            );
     });
 
     async move {
@@ -243,16 +238,13 @@ pub fn cancel_pending_blocking(notification_id: &str) {
 /// before resolving. Useful when you need to confirm the call was processed.
 pub fn close_delivered(notification_id: &str) -> impl Future<Output = ()> + Send + 'static {
     let id = notification_id.to_owned();
-    let (tx, rx) = oneshot::channel::<()>();
-    let tx = Cell::new(Some(tx));
+    let (tx, rx) = worker::sender::<()>();
     worker::dispatch(move || {
         let ids = NSArray::from_retained_slice(&[NSString::from_str(&id)]);
         UNUserNotificationCenter::currentNotificationCenter()
             .removeDeliveredNotificationsWithIdentifiers(&ids);
         log::debug!("removed delivered notification {id:?}");
-        if let Some(sender) = tx.take() {
-            let _ = sender.send(());
-        }
+        tx.send(());
     });
 
     async move { rx.await.unwrap_or(()) }
@@ -265,56 +257,49 @@ pub fn close_delivered(notification_id: &str) -> impl Future<Output = ()> + Send
 /// Unlike [`cancel_pending`], this waits for the worker thread to execute the cancellation before resolving.
 pub fn cancel_pending(notification_id: &str) -> impl Future<Output = ()> + Send + 'static {
     let id = notification_id.to_owned();
-    let (tx, rx) = oneshot::channel::<()>();
-    let tx = Cell::new(Some(tx));
+    let (tx, rx) = worker::sender::<()>();
     worker::dispatch(move || {
         let ids = NSArray::from_retained_slice(&[NSString::from_str(&id)]);
         UNUserNotificationCenter::currentNotificationCenter()
             .removePendingNotificationRequestsWithIdentifiers(&ids);
         log::debug!("cancelled pending notification {id:?}");
-        if let Some(sender) = tx.take() {
-            let _ = sender.send(());
-        }
+        tx.send(());
     });
     async move { rx.await.unwrap_or(()) }
 }
 
 /// Return the identifiers of all pending (scheduled but not yet delivered) notifications.
 pub fn get_pending_notification_ids() -> impl Future<Output = Vec<String>> + Send + 'static {
-    let (tx, rx) = oneshot::channel::<Vec<String>>();
-    let tx = Cell::new(Some(tx));
+    let (tx, rx) = worker::sender::<Vec<String>>();
     worker::dispatch(move || {
-        let block = RcBlock::new(move |requests: NonNull<NSArray<UNNotificationRequest>>| {
-            let ids: Vec<String> = unsafe { requests.as_ref() }
-                .iter()
-                .map(|req| req.identifier().to_string())
-                .collect();
-            if let Some(sender) = tx.take() {
-                let _ = sender.send(ids);
-            }
-        });
         UNUserNotificationCenter::currentNotificationCenter()
-            .getPendingNotificationRequestsWithCompletionHandler(&block);
+            .getPendingNotificationRequestsWithCompletionHandler(&RcBlock::new(
+                move |requests: NonNull<NSArray<UNNotificationRequest>>| {
+                    let ids: Vec<String> = unsafe { requests.as_ref() }
+                        .iter()
+                        .map(|req| req.identifier().to_string())
+                        .collect();
+                    tx.send(ids);
+                },
+            ));
     });
     async move { rx.await.unwrap_or_default() }
 }
 
 /// Return the identifiers of all delivered notifications currently visible in Notification Center.
 pub fn get_delivered_notification_ids() -> impl Future<Output = Vec<String>> + Send + 'static {
-    let (tx, rx) = oneshot::channel::<Vec<String>>();
-    let tx = Cell::new(Some(tx));
+    let (tx, rx) = worker::sender::<Vec<String>>();
     worker::dispatch(move || {
-        let block = RcBlock::new(move |notifications: NonNull<NSArray<UNNotification>>| {
-            let ids: Vec<String> = unsafe { notifications.as_ref() }
-                .iter()
-                .map(|notif| notif.request().identifier().to_string())
-                .collect();
-            if let Some(sender) = tx.take() {
-                let _ = sender.send(ids);
-            }
-        });
         UNUserNotificationCenter::currentNotificationCenter()
-            .getDeliveredNotificationsWithCompletionHandler(&block);
+            .getDeliveredNotificationsWithCompletionHandler(&RcBlock::new(
+                move |notifications: NonNull<NSArray<UNNotification>>| {
+                    let ids: Vec<String> = unsafe { notifications.as_ref() }
+                        .iter()
+                        .map(|notif| notif.request().identifier().to_string())
+                        .collect();
+                    tx.send(ids);
+                },
+            ));
     });
     async move { rx.await.unwrap_or_default() }
 }
