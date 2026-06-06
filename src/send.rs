@@ -124,8 +124,8 @@ impl NotificationHandle {
     }
 }
 
-/// Core scheduling logic: dispatch to worker, register response sender, schedule request.
-fn schedule_inner(
+/// Core sending logic: dispatch to worker, register response sender, schedule request.
+fn send_inner(
     notification: Notification,
     response_tx: Option<oneshot::Sender<NotificationResponse>>,
     request_id: String,
@@ -318,7 +318,7 @@ pub async fn send(notification: Notification) -> Result<String, Error> {
         .clone()
         .unwrap_or_else(|| NSUUID::new().UUIDString().to_string());
     let id_copy = request_id.clone();
-    schedule_inner(notification, None, request_id)
+    send_inner(notification, None, request_id)
         .await
         .map(|()| id_copy)
 }
@@ -336,7 +336,7 @@ pub fn send_blocking(notification: Notification) -> Result<String, Error> {
         .clone()
         .unwrap_or_else(|| NSUUID::new().UUIDString().to_string());
     let id_copy = request_id.clone();
-    future::block_on(schedule_inner(notification, None, request_id)).map(|()| id_copy)
+    future::block_on(send_inner(notification, None, request_id)).map(|()| id_copy)
 }
 
 /// Schedule a notification and return a [`NotificationHandle`] once it is delivered.
@@ -357,7 +357,7 @@ pub async fn send_and_wait_for_delivery(
     let timeout = notification.action_timeout;
     let guard = PendingGuard::new(request_id.clone(), response_rx);
 
-    schedule_inner(notification, Some(response_tx), request_id.clone()).await?;
+    send_inner(notification, Some(response_tx), request_id.clone()).await?;
 
     Ok(NotificationHandle {
         notification_id: request_id,
@@ -403,7 +403,7 @@ pub async fn send_with_actions(notification: Notification) -> Result<Notificatio
     let timeout = notification.action_timeout;
     let guard = PendingGuard::new(request_id.clone(), response_rx);
 
-    schedule_inner(notification, Some(response_tx), request_id.clone()).await?;
+    send_inner(notification, Some(response_tx), request_id.clone()).await?;
 
     NotificationHandle {
         notification_id: request_id,
