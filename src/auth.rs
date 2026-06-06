@@ -20,29 +20,26 @@ fn request_auth_inner() -> impl Future<Output = Result<bool, Error>> + Send + 's
     worker::dispatch(move || {
         log::debug!("closure entered on worker");
         let center = UNUserNotificationCenter::currentNotificationCenter();
-        // `RcBlock` requires a `move` closure that is potentially callable more than once,
-        // so we cannot move a non-`Clone` `oneshot::Sender` directly into the block.
-        // Wrapping it in `Cell<Option<_>>` lets us take it out exactly once on the
-        // first (and only real) invocation while still satisfying the `Fn`/`FnMut` bound.
+
         let tx = Cell::new(Some(tx));
-        let block = RcBlock::new(move |granted: Bool, err: *mut objc2_foundation::NSError| {
-            log::debug!(
-                "completion handler fired (granted={}, err.is_null={})",
-                granted.as_bool(),
-                err.is_null()
-            );
-            if let Some(tx) = tx.take() {
-                if tx.send(Ok(granted.as_bool())).is_err() {
-                    log::warn!("receiver dropped before completion");
-                }
-            } else {
-                log::warn!("completion fired twice");
-            }
-        });
         log::debug!("calling requestAuthorizationWithOptions");
         center.requestAuthorizationWithOptions_completionHandler(
             UNAuthorizationOptions::Alert | UNAuthorizationOptions::Sound,
-            &block,
+            &RcBlock::new(move |granted: Bool, err: *mut objc2_foundation::NSError| {
+                log::debug!(
+                    "completion handler fired (granted={}, err.is_null={})",
+                    granted.as_bool(),
+                    err.is_null()
+                );
+                let Some(tx) = tx.take() else {
+                    log::warn!("completion fired twice");
+                    return;
+                };
+
+                if tx.send(Ok(granted.as_bool())).is_err() {
+                    log::warn!("receiver dropped before completion");
+                }
+            }),
         );
         log::debug!("requestAuthorizationWithOptions returned");
     });
@@ -76,24 +73,25 @@ fn get_settings_inner() -> impl Future<Output = Result<NotificationSettings, Err
     let (tx, rx) = oneshot::channel::<NotificationSettings>();
     let tx = Cell::new(Some(tx));
     worker::dispatch(move || {
-        let block = RcBlock::new(
-            move |settings: NonNull<objc2_user_notifications::UNNotificationSettings>| {
-                let settings_ref = unsafe { settings.as_ref() };
-                let result = NotificationSettings {
-                    authorization_status: settings_ref.authorizationStatus().into(),
-                    alert_enabled: settings_ref.alertSetting().into(),
-                    badge_enabled: settings_ref.badgeSetting().into(),
-                    sound_enabled: settings_ref.soundSetting().into(),
-                    lock_screen_enabled: settings_ref.lockScreenSetting().into(),
-                    notification_center_enabled: settings_ref.notificationCenterSetting().into(),
-                };
-                if let Some(sender) = tx.take() {
-                    let _ = sender.send(result);
-                }
-            },
-        );
         UNUserNotificationCenter::currentNotificationCenter()
-            .getNotificationSettingsWithCompletionHandler(&block);
+            .getNotificationSettingsWithCompletionHandler(&RcBlock::new(
+                move |settings: NonNull<objc2_user_notifications::UNNotificationSettings>| {
+                    let settings_ref = unsafe { settings.as_ref() };
+                    let result = NotificationSettings {
+                        authorization_status: settings_ref.authorizationStatus().into(),
+                        alert_enabled: settings_ref.alertSetting().into(),
+                        badge_enabled: settings_ref.badgeSetting().into(),
+                        sound_enabled: settings_ref.soundSetting().into(),
+                        lock_screen_enabled: settings_ref.lockScreenSetting().into(),
+                        notification_center_enabled: settings_ref
+                            .notificationCenterSetting()
+                            .into(),
+                    };
+                    if let Some(sender) = tx.take() {
+                        let _ = sender.send(result);
+                    }
+                },
+            ));
     });
     async move { rx.await.map_err(|_| Error::NotificationRejected) }
 }

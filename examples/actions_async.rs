@@ -31,12 +31,12 @@ async fn run() {
     notification_1().await.unwrap();
     notification_2().await.unwrap();
 
-    log::warn!("done");
+    log::info!("done");
 }
 
 /// Incoming chat message: reply, like, or delete.
 async fn notification_1() -> Result<(), Box<dyn std::error::Error>> {
-    log::warn!("sending notification 1 (chat message)…");
+    log::info!("sending notification 1 (chat message)…");
 
     let response = Notification::new()
         .title("New message from Hendrik")
@@ -57,7 +57,7 @@ async fn notification_1() -> Result<(), Box<dyn std::error::Error>> {
 
     match response {
         Ok(response) if response.is_default_action() => {
-            log::warn!("opened");
+            log::info!("opened");
             notify_back("Opened", "You clicked the notification body.").await;
         }
         Ok(response) if response.is_dismiss_action() => {
@@ -66,15 +66,15 @@ async fn notification_1() -> Result<(), Box<dyn std::error::Error>> {
         }
         Ok(response) if response.action_identifier == ACTION_REPLY => {
             let text = response.reply_text.as_deref().unwrap_or("<empty>");
-            log::warn!("replied: {text:?}");
+            log::info!("replied: {text:?}");
             notify_back("Message sent ✉️", &format!("You replied: \"{text}\"")).await;
         }
         Ok(response) if response.action_identifier == ACTION_LIKE => {
-            log::warn!("liked");
+            log::info!("liked");
             notify_back("Liked 👍", "Hendrik's message was liked.").await;
         }
         Ok(response) if response.action_identifier == ACTION_TRASH => {
-            log::warn!("deleted");
+            log::info!("deleted");
             notify_back("Deleted 🗑", "Message deleted.").await;
         }
         Ok(response) if response.is_timed_out() => log::warn!("notification 1 timed out"),
@@ -86,7 +86,7 @@ async fn notification_1() -> Result<(), Box<dyn std::error::Error>> {
 
 /// Reminder that prompts for a quick text response.
 async fn notification_2() -> Result<(), Box<dyn std::error::Error>> {
-    log::warn!("sending notification 2 (reminder with reply)…");
+    log::info!("sending notification 2 (reminder with reply)…");
 
     let response = Notification::new()
         .title("Daily standup in 5 minutes")
@@ -106,18 +106,18 @@ async fn notification_2() -> Result<(), Box<dyn std::error::Error>> {
     match response {
         Ok(response) if response.action_identifier == ACTION_QUICK_REPLY => {
             let text = response.reply_text.as_deref().unwrap_or("<empty>");
-            log::warn!("blocker noted: {text:?}");
+            log::info!("blocker noted: {text:?}");
             notify_back("Noted 📝", &format!("Blocker added: \"{text}\"")).await;
         }
         Ok(response) if response.is_dismiss_action() => {
-            log::warn!("dismissed standup reminder");
+            log::info!("dismissed standup reminder");
             notify_back("All clear!", "No blockers noted.").await;
         }
         Ok(response) if response.is_default_action() => {
-            log::warn!("opened standup notification");
+            log::info!("opened standup notification");
         }
-        Ok(response) if response.is_timed_out() => log::warn!("notification 2 timed out"),
-        Ok(response) => log::warn!("unknown action: {}", response.action_identifier),
+        Ok(response) if response.is_timed_out() => log::info!("notification 2 timed out"),
+        Ok(response) => log::info!("unknown action: {}", response.action_identifier),
         Err(error) => log::error!("notification 2 error: {error}"),
     }
     Ok(())

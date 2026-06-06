@@ -26,7 +26,7 @@ fn main() {
         .action(Action::button(ACTION_DISCARD, "Discard").requires_authentication())
         .timeout(std::time::Duration::from_secs(60));
 
-    log::warn!("sending notification, waiting for user response…");
+    log::info!("sending notification, waiting for user response…");
 
     let response = notification
         .send_blocking()
@@ -34,22 +34,22 @@ fn main() {
 
     match response {
         Ok(response) if response.is_default_action() => {
-            log::warn!("user clicked the notification body");
+            log::info!("user clicked the notification body");
             notify_back("Opening file…", "report-2026-05.pdf is being opened.");
         }
         Ok(response) if response.is_dismiss_action() => {
-            log::warn!("user dismissed the notification");
+            log::info!("user dismissed the notification");
         }
         Ok(response) if response.action_identifier == ACTION_OPEN => {
-            log::warn!("user chose: open");
+            log::info!("user chose: open");
             notify_back("Opening file…", "report-2026-05.pdf is being opened.");
         }
         Ok(response) if response.action_identifier == ACTION_SAVE => {
-            log::warn!("user chose: save");
+            log::info!("user chose: save");
             notify_back("Saved ✓", "report-2026-05.pdf saved to Downloads.");
         }
         Ok(response) if response.action_identifier == ACTION_DISCARD => {
-            log::warn!("user chose: discard");
+            log::info!("user chose: discard");
             notify_back("Discarded", "report-2026-05.pdf was deleted.");
         }
         Ok(response) if response.is_timed_out() => {
@@ -63,5 +63,5 @@ fn main() {
         }
     }
 
-    log::warn!("done");
+    log::info!("done");
 }

@@ -9,4 +9,8 @@ pub enum Error {
     /// macOS rejected the request.
     #[error("macOS rejected the notification request")]
     NotificationRejected,
+
+    /// Delivery was interrupted.
+    #[error("Response delivery was interrupted")]
+    ResponseDeliveryInterupted(#[from] futures_channel::oneshot::Canceled),
 }
