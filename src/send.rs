@@ -193,11 +193,7 @@ fn send_inner(
             );
     });
 
-    async move {
-        scheduled_rx
-            .await
-            .unwrap_or(Err(Error::NotificationRejected))
-    }
+    async move { scheduled_rx.await.map_err(Into::into).flatten() }
 }
 
 /// Remove an already-delivered notification from Notification Center by its identifier.
