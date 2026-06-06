@@ -1,6 +1,6 @@
 [package]
 name = "mac-usernotifications"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Hendrik Sollich <hendrik@hoodie.de>"]
 description = "Thin wrapper around macOS UserNotifications."
 edition = "2024"
