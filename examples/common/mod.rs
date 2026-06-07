@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+// pub use mac_usernotifications::block_on_main;
 use mac_usernotifications::{Notification, blocking, check_bundle};
 
 /// Sets up logging and checks the bundle for the example.
@@ -42,6 +43,13 @@ pub fn setup(example_file: &str) -> bool {
         }
     }
 }
+
+// /// Send `notification` and block until the user responds.
+// ///
+// /// Equivalent to `block_on_main(notification.send().await?.response().await)`.
+// pub fn send_and_await(notification: Notification) -> Result<NotificationResponse, Error> {
+//     block_on_main(async { notification.send().await?.response().await })
+// }
 
 pub async fn notify_back(title: &str, message: &str) {
     if let Err(error) = Notification::new()

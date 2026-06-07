@@ -1,4 +1,4 @@
-use mac_usernotifications::{Action, Notification};
+use mac_usernotifications::{Action, Notification, block_on_main};
 
 mod common;
 
@@ -30,7 +30,7 @@ fn main() {
 
     let response = notification
         .send_blocking()
-        .and_then(|sent| sent.response_blocking());
+        .and_then(|handle| block_on_main(handle.response()));
 
     match response {
         Ok(response) if response.is_default_action() => {

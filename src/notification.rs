@@ -273,13 +273,14 @@ impl Notification {
 
     /// Send the notification, blocking until delivered, then return a [`NotificationHandle`](`crate::NotificationHandle`).
     ///
-    /// Call [`.response_blocking()`](crate::send::NotificationHandle::response_blocking)
-    /// on the handle to then block waiting for the user, or drop it to ignore the response.
+    /// Waits for macOS to accept the notification request, then returns a handle. Call
+    /// [`crate::block_on_main`]`(handle.response())` to block waiting for the user's
+    /// response, or drop the handle to ignore it.
     #[cfg(feature = "blocking-wrappers")]
     pub fn send_blocking(self) -> Result<crate::send::NotificationHandle, Error> {
-        use crate::send::send_and_wait_for_delivery_blocking;
+        use crate::send::send_and_wait_for_delivery;
         check_bundle()?;
-        send_and_wait_for_delivery_blocking(self)
+        crate::block_on_main(send_and_wait_for_delivery(self))
     }
 }
 

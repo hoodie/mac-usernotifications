@@ -100,28 +100,6 @@ impl NotificationHandle {
             receiver.await.map_err(|_| Error::NotificationRejected)
         }
     }
-
-    /// Blocking version of [`response`](Self::response).
-    ///
-    /// **Main thread:** pumps `NSRunLoop` between polls so callbacks fire.
-    /// **Background thread:** blocks and expects the main thread to already be
-    /// pumping `NSRunLoop`.
-    #[cfg(feature = "blocking-wrappers")]
-    pub fn response_blocking(self) -> Result<NotificationResponse, Error> {
-        if objc2::MainThreadMarker::new().is_some() {
-            super::block_on_main(self.response())
-        } else {
-            if !crate::main_thread_is_pumping() {
-                log::warn!(
-                    "response_blocking called from a background thread but the main \
-                     NSRunLoop does not appear to be running. The call may hang \
-                     indefinitely. See `run_main_loop_while` / `block_on_main` in the \
-                     crate docs, or set a timeout via `Notification::timeout`."
-                );
-            }
-            future::block_on(self.response())
-        }
-    }
 }
 
 /// Core sending logic: dispatch to worker, register response sender, schedule request.
@@ -362,19 +340,6 @@ pub async fn send_and_wait_for_delivery(
     })
 }
 
-/// Blocking variant of [`send_and_wait_for_delivery`].
-#[cfg(feature = "blocking-wrappers")]
-pub fn send_and_wait_for_delivery_blocking(
-    notification: Notification,
-) -> Result<NotificationHandle, Error> {
-    check_bundle()?;
-    if objc2::MainThreadMarker::new().is_some() {
-        super::block_on_main(send_and_wait_for_delivery(notification))
-    } else {
-        future::block_on(send_and_wait_for_delivery(notification))
-    }
-}
-
 /// Schedule an actionable notification and wait for the user's response.
 ///
 /// This collapses both phases (delivery + response) into one call. For the split
@@ -408,35 +373,4 @@ pub async fn send_with_actions(notification: Notification) -> Result<Notificatio
     }
     .response()
     .await
-}
-
-/// Schedule an actionable notification, blocking until response or timeout.
-///
-/// **Main thread**: pumps `NSRunLoop` between polls so callbacks fire while waiting.
-/// **Background thread**: blocks and expects the main thread to already be pumping
-/// `NSRunLoop` (`AppKit`, `SwiftUI`, or [`crate::run_main_loop_while`]).
-///
-/// If a timeout was set, the notification is auto-closed when it elapses and
-/// the response has [`NotificationResponse::is_timed_out`] set to `true`.
-#[cfg(feature = "blocking-wrappers")]
-pub fn send_with_actions_blocking(
-    notification: Notification,
-) -> Result<NotificationResponse, Error> {
-    check_bundle()?;
-    if objc2::MainThreadMarker::new().is_some() {
-        super::block_on_main(send_with_actions(notification))
-    } else {
-        // Called from a background thread: same caveat as `response_blocking`.
-        // The OS delivers `didReceiveNotificationResponse` on the main run loop,
-        // so if nothing is pumping it this call will hang indefinitely.
-        if !crate::main_thread_is_pumping() {
-            log::warn!(
-                "send_with_actions_blocking called from a background thread but the \
-                 main NSRunLoop does not appear to be running. The call may hang \
-                 indefinitely. See `run_main_loop_while` / `block_on_main` in the \
-                 crate docs, or set a timeout via `Notification::timeout`."
-            );
-        }
-        future::block_on(send_with_actions(notification))
-    }
 }

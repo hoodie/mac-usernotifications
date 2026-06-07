@@ -13,8 +13,7 @@ fn main() {
         .subtitle("this one should stay for 2s")
         .timeout(Duration::from_secs(2))
         .send_blocking()
-        .unwrap()
-        .response_blocking()
+        .and_then(|handle| block_on_main(handle.response()))
         .unwrap();
 
     if response.is_timed_out() {

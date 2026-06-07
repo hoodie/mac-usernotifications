@@ -11,7 +11,7 @@
 //! # Quick start
 //!
 //! ```no_run
-//! # use mac_usernotifications::{Action, blocking, Notification, check_bundle};
+//! # use mac_usernotifications::{Action, blocking, block_on_main, Notification, check_bundle};
 //! # use std::time::Duration;
 //! # fn main() {
 //! // 1. verify the process has a bundle identifier
@@ -29,15 +29,18 @@
 //!
 //! println!("notification id: {}", handle.notification_id());
 //!
-//! // 3b. actionable: blocks until the user responds (use send().await in async contexts)
-//! let response = Notification::new()
-//!     .title("Pick one")
-//!     .action(Action::button("ok", "OK"))
-//!     .action(Action::button("cancel", "Cancel"))
-//!     .timeout(Duration::from_secs(30)) // 4. always set a timeout for actionable notifications
-//!     .send_blocking()
-//!     .and_then(|handle| handle.response_blocking())
-//!     .unwrap();
+//! // 3b. actionable: use block_on_main to drive the run loop while waiting for the response
+//! let response = block_on_main(async {
+//!     Notification::new()
+//!         .title("Pick one")
+//!         .action(Action::button("ok", "OK"))
+//!         .action(Action::button("cancel", "Cancel"))
+//!         .timeout(Duration::from_secs(30)) // 4. always set a timeout for actionable notifications
+//!         .send()
+//!         .await?
+//!         .response()
+//!         .await
+//! }).unwrap();
 //!
 //! println!("User chose: {}", response.action_identifier);
 //! # }
@@ -53,51 +56,36 @@
 //!
 //! ## GUI apps (`AppKit` / `SwiftUI` / `Tauri`)
 //!
-//! The framework drives the main run loop automatically. Both `send` and `send_blocking` work from any thread without extra setup.
+//! The framework drives the main run loop automatically. `send`, `send_blocking`, and
+//! `response().await` all work from any thread without extra setup.
 //!
-//! ## CLI tools
+//! ## Headless / background-only apps
 //!
-//! Nothing pumps the main run loop by default, so you have to do it yourself.
-//!
-//! **Blocking:** [`blocking::send`] handles this automatically when called from
-//! the main thread. It pumps the [`runLoop`](https://developer.apple.com/documentation/foundation/runloop) between polls via [`block_on_main`].
-//! Called from a background thread, it parks the caller and expects the main
-//! run loop to be driven externally. See `examples/actions_blocking.rs`.
-//!
-//! **Async with Tokio:** `#[tokio::main]` occupies the main thread inside
-//! Tokio's scheduler, so the [`runLoop`](https://developer.apple.com/documentation/foundation/runloop) never runs and callbacks never fire.
-//! Keep the main thread free and run Tokio on background threads instead:
+//! No framework drives the run loop, so you must do it yourself. Use [`block_on_main`]
+//! to run an async expression on the main thread while pumping the run loop:
 //!
 //! ```no_run
-//! # use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+//! # use mac_usernotifications::{Notification, block_on_main};
 //! # fn main() {
-//! // Multi-thread runtime lives entirely on background threads.
-//! let rt = tokio::runtime::Builder::new_multi_thread()
-//!     .enable_all()
-//!     .build()
-//!     .unwrap();
-//!
-//! let done = Arc::new(AtomicBool::new(false));
-//! let done2 = done.clone();
-//!
-//! rt.spawn(async move {
-//!     // ... your async code, using send() etc. ...
-//!     done2.store(true, Ordering::Release);
+//! let response = block_on_main(async {
+//!     Notification::new()
+//!         .title("Hello")
+//!         .send().await?
+//!         .response().await
 //! });
-//!
-//! // Main thread pumps the runLoop until async work signals completion.
-//! mac_usernotifications::run_main_loop_while(|| !done.load(Ordering::Acquire));
 //! # }
 //! ```
 //!
-//! See `examples/simple_tokio.rs` for a complete working example.
+//! Or for Tokio, keep the main thread free for [`run_main_loop_while`] and run the
+//! runtime entirely on background threads. See `examples/simple_tokio.rs`.
 //!
-//! ## "Clear All" caveat
+//! ## Known pitfalls
 //!
-//! If the user clicks **"Clear All"** in Notification Center,
-//! [`didReceiveNotificationResponse`](https://developer.apple.com/documentation/usernotifications/unusernotificationcenterdelegate/usernotificationcenter(_:didreceive:withcompletionhandler:)) is never called and the future will never
-//! resolve. Always set a timeout via [`Notification::timeout`] for actionable
-//! notifications.
+//! | Scenario | Symptom | Fix |
+//! |---|---|---|
+//! | `response().await` called with nothing pumping the main run loop | future never resolves | Use [`block_on_main`] or [`run_main_loop_while`] on the main thread |
+//! | `#[tokio::main]` — main thread is inside Tokio | callbacks never fire | Use `new_multi_thread()` and keep main free for [`run_main_loop_while`] |
+//! | User clicks **"Clear All"** in Notification Center | future never resolves | Always set a timeout via [`Notification::timeout`] for actionable notifications |
 
 #![warn(missing_docs)]
 #![forbid(trivial_numeric_casts, unused_import_braces)]
@@ -119,10 +107,6 @@
 
 use objc2_foundation::{NSBundle, NSDate, NSDefaultRunLoopMode, NSRunLoop};
 use std::future::Future;
-
-pub(crate) fn main_thread_is_pumping() -> bool {
-    objc2_core_foundation::CFRunLoop::main().is_some_and(|run_loop| run_loop.is_waiting())
-}
 
 mod auth;
 mod delegate;
@@ -153,7 +137,11 @@ pub use crate::{
 
 #[cfg(feature = "blocking-wrappers")]
 pub mod blocking {
-    //! Blocking wrappers for the notification API.
+    //! Blocking wrappers for fire-and-forget operations.
+    //!
+    //! These are safe to call from any thread. None of them wait for a
+    //! notification response — use [`crate::block_on_main`] with the async
+    //! API for that.
     pub use crate::{
         auth::{
             get_notification_settings_blocking as get_notification_settings,
@@ -161,7 +149,7 @@ pub mod blocking {
         },
         send::{
             cancel_pending_blocking as cancel_pending, close_delivered_blocking as close_delivered,
-            send_blocking as send, send_with_actions_blocking as send_with_actions,
+            send_blocking as send,
         },
     };
 }
