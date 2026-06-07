@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.2.0](https://github.com/hoodie/mac-usernotifications/compare/v0.1.1...v0.2.0) (2026-06-08)
+
+### Features
+
+* drop response-blocking wrappers, nobody needs them
+([fd1920b](https://github.com/hoodie/mac-usernotifications/commit/fd1920be811759588b3abc98e19851f1470d90d3))
+* use RunLoop in block_on_main waker
+([3d74b1d](https://github.com/hoodie/mac-usernotifications/commit/3d74b1d47e50ecc252c30bd24b6270b4cf5abe9b))
+
 ### [v0.1.1](https://github.com/hoodie/mac-usernotifications/compare/v0.1.0...v0.1.1) (2026-06-06)
 
 #### Fixes
