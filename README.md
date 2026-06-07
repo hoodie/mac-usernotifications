@@ -80,7 +80,6 @@ match response {
 ### Reply actions (async)
 
 Reply actions open an inline text field; the typed text arrives in `response.reply_text`.
-`block_on_main` drives the future on the main thread while pumping [`NSRunLoop`](https://developer.apple.com/documentation/foundation/nsrunloop).
 
 ```rs
 Notification::new()

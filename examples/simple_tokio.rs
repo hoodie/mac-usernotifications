@@ -14,7 +14,7 @@ fn main() {
         .expect("failed to build Tokio runtime");
 
     // Spawn the async work onto Tokio, then await its JoinHandle on the main
-    // thread while NSRunLoop is being pumped.
+    // thread while the runLoop is being pumped.
     let handle = rt.spawn(run());
     if let Err(error) = block_on_main(handle) {
         log::error!("tokio task panicked: {error}");

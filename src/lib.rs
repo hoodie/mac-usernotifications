@@ -49,10 +49,9 @@
 //! regardless of which thread the delegate was registered from ([Apple docs](https://developer.apple.com/documentation/usernotifications/unusernotificationcenterdelegate)).
 //! The main thread's run loop must be spinning whenever you expect the user to interact with a notification.
 //!
-//! This crate uses a lazily-created worker thread for all Objective-C calls.
-//! That thread pumps its own [`NSRunLoop`](https://developer.apple.com/documentation/foundation/nsrunloop), but response callbacks still arrive on the **main** thread.
+//! This crate uses a lazily-created worker thread for all Objective-C calls, to enable async APIs.
 //!
-//! ## GUI apps (`AppKit` / `SwiftUI` / Tauri)
+//! ## GUI apps (`AppKit` / `SwiftUI` / `Tauri`)
 //!
 //! The framework drives the main run loop automatically. Both `send` and `send_blocking` work from any thread without extra setup.
 //!
@@ -60,13 +59,13 @@
 //!
 //! Nothing pumps the main run loop by default, so you have to do it yourself.
 //!
-//! **Blocking:** `send_blocking` handles this automatically when called from
-//! the main thread. It pumps [`NSRunLoop`](https://developer.apple.com/documentation/foundation/nsrunloop) between polls via [`block_on_main`].
+//! **Blocking:** [`blocking::send`] handles this automatically when called from
+//! the main thread. It pumps the [`runLoop`](https://developer.apple.com/documentation/foundation/runloop) between polls via [`block_on_main`].
 //! Called from a background thread, it parks the caller and expects the main
 //! run loop to be driven externally. See `examples/actions_blocking.rs`.
 //!
 //! **Async with Tokio:** `#[tokio::main]` occupies the main thread inside
-//! Tokio's scheduler, so [`NSRunLoop`](https://developer.apple.com/documentation/foundation/nsrunloop) never runs and callbacks never fire.
+//! Tokio's scheduler, so the [`runLoop`](https://developer.apple.com/documentation/foundation/runloop) never runs and callbacks never fire.
 //! Keep the main thread free and run Tokio on background threads instead:
 //!
 //! ```no_run
@@ -86,7 +85,7 @@
 //!     done2.store(true, Ordering::Release);
 //! });
 //!
-//! // Main thread pumps NSRunLoop until async work signals completion.
+//! // Main thread pumps the runLoop until async work signals completion.
 //! mac_usernotifications::run_main_loop_while(|| !done.load(Ordering::Acquire));
 //! # }
 //! ```
@@ -187,7 +186,7 @@ pub fn run_main_loop_while<F: Fn() -> bool>(should_continue: F) {
 ///
 /// **Must be called from the main thread.** Polls the future with a no-op waker,
 /// pumping the main [`NSRunLoop`](https://developer.apple.com/documentation/foundation/nsrunloop) between polls to allow callbacks to fire.
-/// GUI apps (Tauri, `AppKit`, `SwiftUI`) pump [`NSRunLoop`](https://developer.apple.com/documentation/foundation/nsrunloop) automatically; CLI tools need this.
+/// GUI apps (`Tauri`, `AppKit`, `SwiftUI`) pump [`RunLoop`](https://developer.apple.com/documentation/foundation/runloop) automatically; CLI tools need this.
 pub fn block_on_main<F: Future>(future: F) -> F::Output {
     use std::task::{Context, Poll};
 
