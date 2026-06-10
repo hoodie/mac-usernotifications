@@ -23,7 +23,11 @@ status "Opening" "$APP"
 pkill -x "$EXAMPLE" 2>/dev/null || true
 open "$APP"
 
-status "Streaming" "logs for process: $EXAMPLE (Ctrl+C to stop)"
+# Give the app a moment to launch, then grab its PID.
+sleep 0.5
+APP_PID=$(pgrep -x "$EXAMPLE" | head -1)
+
+status "Streaming" "logs for process: $EXAMPLE (PID $APP_PID — stops when app exits)"
 
 # First replay any logs already emitted since the app launched, then stream live.
 # Both commands include debug level messages.
@@ -41,4 +45,12 @@ log show \
 log stream \
     --predicate "$PREDICATE" \
     --style compact \
-    --level debug
+    --level debug &
+LOG_PID=$!
+
+# Wait for the app to exit, then stop the log stream.
+while kill -0 "$APP_PID" 2>/dev/null; do
+    sleep 0.5
+done
+status "Done" "$EXAMPLE exited — stopping log stream"
+kill "$LOG_PID" 2>/dev/null || true
