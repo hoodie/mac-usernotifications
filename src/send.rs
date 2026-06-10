@@ -118,17 +118,14 @@ fn send_inner(
         } = notification.build_content();
         log::debug!("request_id={request_id:?}");
 
-        // Register a category when a response sender is present so that `CustomDismissAction` delivers a dismiss callback
-        // even for notifications without visible action buttons.
-        // An empty category (no buttons) is invisible to the user but lets us observe swipe-to-dismiss via `didReceiveNotificationResponse`.
-        if response_tx.is_some() || !actions.is_empty() {
-            let category_id = if actions.is_empty() {
-                "de.hoodie.mac-usernotifications.observe".to_owned()
-            } else {
-                let mut ids: Vec<&str> = actions.iter().map(|act| act.identifier()).collect();
-                ids.sort_unstable();
-                ids.join(",")
-            };
+        // Only register a category (and thus CustomDismissAction) when the notification
+        // has explicit action buttons. Registering CustomDismissAction on a buttonless
+        // notification tells macOS to relaunch the .app bundle on dismiss — causing an
+        // infinite restart loop for fire-and-forget notifications.
+        if !actions.is_empty() {
+            let mut ids: Vec<&str> = actions.iter().map(|act| act.identifier()).collect();
+            ids.sort_unstable();
+            let category_id = ids.join(",");
             log::debug!("registering synthesised category {category_id:?}");
             ActionCategory::from_actions(&category_id, actions).register_now();
             content.setCategoryIdentifier(&NSString::from_str(&category_id));
