@@ -13,4 +13,8 @@ pub enum Error {
     /// Delivery was interrupted.
     #[error("Response delivery was interrupted")]
     ResponseDeliveryInterupted(#[from] futures_channel::oneshot::Canceled),
+
+    /// Mainthread not running.
+    #[error("Mainthread not running")]
+    MainThreadNotRunning,
 }

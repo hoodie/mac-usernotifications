@@ -193,10 +193,13 @@ mod runloop_waker {
 
 /// Run a future to completion on the main thread while pumping [`NSRunLoop`](https://developer.apple.com/documentation/foundation/nsrunloop).
 ///
-/// **Must be called from the main thread.** Uses a waker that calls
-/// [`CFRunLoop::wake_up`](objc2_core_foundation::CFRunLoop::wake_up) on the main run loop, so the run loop
-/// sleep is interrupted as soon as the future signals readiness — no busy-polling.
-/// GUI apps (`Tauri`, `AppKit`, `SwiftUI`) pump [`RunLoop`](https://developer.apple.com/documentation/foundation/runloop) automatically; CLI tools need this.
+/// ## Thread Safety
+/// **Must be called from the main thread.**
+/// Uses a waker that calls [`CFRunLoop::wake_up`](objc2_core_foundation::CFRunLoop::wake_up) on the main run loop,
+/// so the run loop sleep is interrupted as soon as the future signals readiness, no busy-polling.
+/// GUI apps (`Tauri`, `AppKit`, `SwiftUI`) pump [`RunLoop`](https://developer.apple.com/documentation/foundation/runloop) automatically.
+///
+/// **Use [`dynamic_block_on`] instead if the main thread may not be running.**
 pub fn block_on_main<F: Future>(future: F) -> F::Output {
     use std::task::{Context, Poll, RawWaker, Waker};
 
@@ -216,6 +219,31 @@ pub fn block_on_main<F: Future>(future: F) -> F::Output {
         let until = NSDate::dateWithTimeIntervalSinceNow(1.0);
         unsafe { run_loop.runMode_beforeDate(NSDefaultRunLoopMode, &until) };
     }
+}
+
+/// Block on the future, using [`block_on_main`] if the current thread is the main thread.
+///
+/// Returns `None` if the main thread is not pumping.
+pub fn dynamic_block_on<F: Future>(future: F) -> Result<F::Output, Error> {
+    if objc2::MainThreadMarker::new().is_some() {
+        // we are on the main thread, so we can safely block on the future
+        Ok(block_on_main(future))
+    } else if main_run_loop_is_running() {
+        // we can safely block on the future here, as we know the main thread is pumping
+        Ok(block_on(future))
+    } else {
+        log::error!("main thread is not pumping");
+        Err(Error::MainThreadNotRunning)
+    }
+}
+
+/// Returns `true` if the main thread's run loop is active and able to deliver callbacks.
+///
+/// macOS always delivers notification responses on the main thread's run loop.
+/// If nothing is running it (no AppKit/SwiftUI framework, no explicit [`run_main_loop_while`] call),
+/// response futures will never resolve.
+pub(crate) fn main_run_loop_is_running() -> bool {
+    objc2_core_foundation::CFRunLoop::main().is_some_and(|rl| rl.is_waiting())
 }
 
 /// Verify the process has a bundle identifier.
