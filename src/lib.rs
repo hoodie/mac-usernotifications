@@ -224,7 +224,7 @@ pub fn block_on_main<F: Future>(future: F) -> F::Output {
 /// Block on the future, using [`block_on_main`] if the current thread is the main thread.
 ///
 /// Returns `None` if the main thread is not pumping.
-pub fn dynamic_block_on<F: Future>(future: F) -> Result<F::Output, Error> {
+pub fn block_on_current<F: Future>(future: F) -> Result<F::Output, Error> {
     if objc2::MainThreadMarker::new().is_some() {
         // we are on the main thread, so we can safely block on the future
         Ok(block_on_main(future))

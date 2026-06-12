@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use mac_usernotifications::{Action, Notification, block_on_main};
+use mac_usernotifications::{Action, Notification, block_on_current};
 
 mod common;
 
@@ -30,7 +30,8 @@ fn main() {
         .action(Action::button(ACTION_KEEP, "Keep"))
         .timeout(Duration::from_secs(60))
         .send_blocking()
-        .and_then(|handle| block_on_main(handle.response()))
+        .and_then(|handle| block_on_current(handle.response()))
+        .flatten()
         .unwrap();
 
     if response.action_identifier == ACTION_CLEAR {

@@ -21,7 +21,8 @@ fn main() {
         .subtitle("Will Robinson")
         .message("Run away as fast as you can")
         .send_blocking()
-        .and_then(|handle| block_on_main(handle.response()))
+        .and_then(|handle| block_on_current(handle.response()))
+        .flatten()
         .unwrap();
 
     if response.is_default_action() {

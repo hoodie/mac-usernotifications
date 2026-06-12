@@ -1,4 +1,4 @@
-use mac_usernotifications::{Notification, block_on_main};
+use mac_usernotifications::{Notification, block_on_current};
 
 mod common;
 
@@ -16,7 +16,7 @@ fn main() {
     // Spawn the async work onto Tokio, then await its JoinHandle on the main
     // thread while the runLoop is being pumped.
     let handle = rt.spawn(run());
-    if let Err(error) = block_on_main(handle) {
+    if let Err(error) = block_on_current(handle) {
         log::error!("tokio task panicked: {error}");
     }
 }

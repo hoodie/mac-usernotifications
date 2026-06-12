@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use mac_usernotifications::{Action, Notification, block_on_main};
+use mac_usernotifications::{Notification, block_on_current};
 
 mod common;
 
@@ -17,7 +17,7 @@ fn main() {
         .action(Action::button(ACTION, "Something"))
         .timeout(Duration::from_secs(10))
         .send_blocking()
-        .and_then(|handle| block_on_main(handle.response()))
+        .and_then(|handle| block_on_current(handle.response()).unwrap())
         .unwrap();
 
     if response.is_default_action() {

@@ -280,7 +280,7 @@ impl Notification {
     pub fn send_blocking(self) -> Result<crate::send::NotificationHandle, Error> {
         use crate::send::send_and_wait_for_delivery;
         check_bundle()?;
-        crate::block_on_main(send_and_wait_for_delivery(self))
+        crate::block_on_current(send_and_wait_for_delivery(self))?
     }
 }
 

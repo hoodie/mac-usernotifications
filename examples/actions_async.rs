@@ -1,4 +1,4 @@
-use mac_usernotifications::{Action, Notification, block_on_main, request_auth};
+use mac_usernotifications::{Action, Notification, block_on_current, request_auth};
 
 mod common;
 use common::notify_back;
@@ -12,7 +12,7 @@ fn main() {
     if !common::setup(file!()) {
         return;
     }
-    block_on_main(run());
+    block_on_current(run()).unwrap();
 }
 
 async fn run() {

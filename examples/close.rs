@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use futures_lite::future;
 use mac_usernotifications::{
-    Action, InterruptionLevel::Critical, Notification, block_on_main, cancel_pending,
+    Action, InterruptionLevel::Critical, Notification, block_on_current, cancel_pending,
     close_delivered,
 };
 
@@ -53,7 +53,8 @@ fn main() {
         .interruption_level(Critical)
         .timeout(Duration::from_secs(60))
         .send_blocking()
-        .and_then(|handle| block_on_main(handle.response()))
+        .and_then(|handle| block_on_current(handle.response()))
+        .flatten()
         .unwrap();
 
     if response.action_identifier == ACTION_CLOSE {
