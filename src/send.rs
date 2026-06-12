@@ -51,6 +51,11 @@ pub struct NotificationHandle {
     notification_id: String,
     guard: PendingGuard,
     timeout: Option<Duration>,
+    /// `false` when no action buttons were registered, meaning macOS will not fire
+    /// `didReceiveNotificationResponse` on a silent dismiss. In that case
+    /// [`response`](NotificationHandle::response) falls back to polling
+    /// `deliveredNotifications` to detect when the notification disappears.
+    has_actions: bool,
 }
 
 impl fmt::Debug for NotificationHandle {
@@ -59,6 +64,7 @@ impl fmt::Debug for NotificationHandle {
             .debug_struct("NotificationHandle")
             .field("notification_id", &self.notification_id)
             .field("timeout", &self.timeout)
+            .field("has_actions", &self.has_actions)
             .finish()
     }
 }
@@ -85,19 +91,39 @@ impl NotificationHandle {
     pub async fn response(self) -> Result<NotificationResponse, Error> {
         let notification_id = self.notification_id.clone();
         let receiver = self.guard.into_receiver();
+        let delegate_future = async { receiver.await.map_err(|_| Error::NotificationRejected) };
 
         if let Some(duration) = self.timeout {
-            future::or(
-                async { receiver.await.map_err(|_| Error::NotificationRejected) },
-                async move {
-                    futures_timer::Delay::new(duration).await;
-                    close_delivered(&notification_id).await;
-                    Ok(NotificationResponse::timed_out(notification_id))
-                },
-            )
+            future::or(delegate_future, async move {
+                futures_timer::Delay::new(duration).await;
+                close_delivered(&notification_id).await;
+                Ok(NotificationResponse::timed_out(notification_id))
+            })
             .await
+        } else if !self.has_actions {
+            // No action buttons → macOS never fires didReceiveNotificationResponse on
+            // a silent dismiss. Race the delegate future against a poll loop that
+            // resolves as soon as the notification disappears from deliveredNotifications.
+            future::or(delegate_future, poll_until_dismissed(notification_id)).await
         } else {
-            receiver.await.map_err(|_| Error::NotificationRejected)
+            delegate_future.await
+        }
+    }
+}
+
+const DISMISS_POLL_INTERVAL: Duration = Duration::from_millis(500);
+
+/// Resolves with a synthetic `Dismissed` response once `notification_id` is no longer
+/// present in `deliveredNotifications`.
+///
+/// Used as a fallback for buttonless notifications where macOS does not fire
+/// `didReceiveNotificationResponse` on a silent dismiss.
+async fn poll_until_dismissed(notification_id: String) -> Result<NotificationResponse, Error> {
+    loop {
+        futures_timer::Delay::new(DISMISS_POLL_INTERVAL).await;
+        let delivered = get_delivered_notification_ids().await;
+        if !delivered.contains(&notification_id) {
+            return Ok(NotificationResponse::dismissed(notification_id));
         }
     }
 }
@@ -153,7 +179,7 @@ fn send_inner(
             .addNotificationRequest_withCompletionHandler(
                 &request,
                 Some(&RcBlock::new(move |err: *mut NSError| {
-                    log::debug!("completion handler fired (err.is_null={})", err.is_null());
+                    log::trace!("send completed (err.is_null={})", err.is_null());
                     if let Some(err) = NonNull::new(err).map(|ptr| unsafe { ptr.as_ref() }) {
                         let desc = err.localizedDescription();
                         log::error!("notification request rejected: {desc}");
@@ -326,6 +352,7 @@ pub async fn send_and_wait_for_delivery(
 
     let (response_tx, response_rx) = oneshot::channel();
     let timeout = notification.action_timeout;
+    let has_actions = !notification.actions.is_empty();
     let guard = PendingGuard::new(request_id.clone(), response_rx);
 
     send_inner(notification, Some(response_tx), request_id.clone()).await?;
@@ -334,6 +361,7 @@ pub async fn send_and_wait_for_delivery(
         notification_id: request_id,
         guard,
         timeout,
+        has_actions,
     })
 }
 
@@ -359,6 +387,7 @@ pub async fn send_with_actions(notification: Notification) -> Result<Notificatio
         .unwrap_or_else(|| NSUUID::new().UUIDString().to_string());
     let (response_tx, response_rx) = oneshot::channel();
     let timeout = notification.action_timeout;
+    let has_actions = !notification.actions.is_empty();
     let guard = PendingGuard::new(request_id.clone(), response_rx);
 
     send_inner(notification, Some(response_tx), request_id.clone()).await?;
@@ -367,6 +396,7 @@ pub async fn send_with_actions(notification: Notification) -> Result<Notificatio
         notification_id: request_id,
         guard,
         timeout,
+        has_actions,
     }
     .response()
     .await

@@ -118,6 +118,17 @@ impl NotificationResponse {
         }
     }
 
+    /// Construct a synthetic dismissed response, used by the poll-based dismiss
+    /// fallback for buttonless notifications.
+    pub(crate) fn dismissed(notification_id: String) -> Self {
+        Self {
+            notification_id,
+            action_identifier: String::new(),
+            reply_text: None,
+            close_reason: Some(CloseReason::Dismissed),
+        }
+    }
+
     /// Returns `true` if the notification was automatically closed because the
     /// timeout set via [`Notification::timeout`](crate::Notification::timeout) elapsed.
     ///
