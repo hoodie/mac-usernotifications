@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
-// pub use mac_usernotifications::block_on_main;
+use std::thread;
+
 use mac_usernotifications::{Notification, blocking, check_bundle};
 
 /// Sets up logging and checks the bundle for the example.
@@ -64,4 +65,21 @@ pub async fn notify_back(title: &str, message: &str) {
 
 fn main() {
     unimplemented!("this is just a module");
+}
+
+/// Pump the main thread's `NSRunLoop` while `thread` is not finished.
+///
+/// ## Warning
+/// This is a convenience helper for example code only. In proper mac apps you don't need this.
+///
+/// `NSUserNotificationCenter` delivers delegate callbacks on the main run loop.
+/// Call this from the main thread when waiting for a response from a background thread.
+pub fn run_main_loop_while<T>(thread: thread::JoinHandle<T>) -> thread::Result<T> {
+    use objc2_foundation::{NSDate, NSDefaultRunLoopMode, NSRunLoop};
+    let run_loop = NSRunLoop::mainRunLoop();
+    while !thread.is_finished() {
+        let until = NSDate::dateWithTimeIntervalSinceNow(0.05);
+        unsafe { run_loop.runMode_beforeDate(NSDefaultRunLoopMode, &until) };
+    }
+    thread.join()
 }

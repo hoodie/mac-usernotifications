@@ -157,19 +157,7 @@ pub mod blocking {
 #[cfg(feature = "blocking-wrappers")]
 pub use futures_lite::future::block_on;
 
-/// Pump the main thread's [`RunLoop`](https://developer.apple.com/documentation/foundation/runloop) until `should_continue` returns `false`.
-///
-/// **Must be called from the main thread.** Required because [`UNUserNotificationCenter`](https://developer.apple.com/documentation/usernotifications/unusernotificationcenter)
-/// always delivers callbacks on the main thread's run loop; async runtimes that occupy
-/// the main thread will never fire callbacks.
-pub fn run_main_loop_while<F: Fn() -> bool>(should_continue: F) {
-    let run_loop = NSRunLoop::mainRunLoop();
-    while should_continue() {
-        let until = NSDate::dateWithTimeIntervalSinceNow(0.05);
-        unsafe { run_loop.runMode_beforeDate(NSDefaultRunLoopMode, &until) };
-    }
-}
-
+/// Set the application which delivers or schedules a notification
 /// A [`RawWakerVTable`](std::task::RawWakerVTable) whose `wake` calls [`CFRunLoop::wake_up`](objc2_core_foundation::CFRunLoop::wake_up) on the main run loop.
 ///
 /// The data pointer is always null; the main run loop is a global.
