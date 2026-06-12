@@ -1,5 +1,18 @@
 # Changelog
 
+## [v0.3.0](https://github.com/hoodie/mac-usernotifications/compare/v0.2.0...v0.3.0) (2026-06-13)
+
+### Fixes
+
+* poll deliveredNotifications to detect buttonless dismiss
+([f2e3442](https://github.com/hoodie/mac-usernotifications/commit/f2e34429e390e52f8417893b0e61299fb7553da3))
+* replace block_on_main with block_on_current
+([32b26fe](https://github.com/hoodie/mac-usernotifications/commit/32b26fe02e88693e4f789acf7db03a4041f56568))
+* specify semantics around block_on helpers
+([73b2f12](https://github.com/hoodie/mac-usernotifications/commit/73b2f1262fead45f59c96dd47d8fbf14e7ab3b77))
+* don't register CustomDismissAction on buttonless notifications
+([a5c8b85](https://github.com/hoodie/mac-usernotifications/commit/a5c8b85066a4de272cfe65a303c5b564b54c163d))
+
 ## [v0.2.0](https://github.com/hoodie/mac-usernotifications/compare/v0.1.1...v0.2.0) (2026-06-08)
 
 ### Features
