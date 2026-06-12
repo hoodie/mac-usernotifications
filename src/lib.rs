@@ -154,7 +154,6 @@ pub mod blocking {
     };
 }
 
-#[cfg(feature = "blocking-wrappers")]
 pub use futures_lite::future::block_on;
 
 /// Set the application which delivers or schedules a notification
