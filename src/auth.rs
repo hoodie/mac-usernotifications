@@ -26,8 +26,8 @@ fn request_auth_inner() -> impl Future<Output = Result<bool, Error>> + Send + 's
         center.requestAuthorizationWithOptions_completionHandler(
             UNAuthorizationOptions::Alert | UNAuthorizationOptions::Sound,
             &RcBlock::new(move |granted: Bool, err: *mut objc2_foundation::NSError| {
-                log::debug!(
-                    "completion handler fired (granted={}, err.is_null={})",
+                log::trace!(
+                    "authorization completed (granted={}, err.is_null={})",
                     granted.as_bool(),
                     err.is_null()
                 );

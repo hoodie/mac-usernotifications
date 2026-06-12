@@ -22,7 +22,7 @@ fn handle() -> &'static mpsc::Sender<Task> {
                 delegate::install();
                 for task in rx {
                     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(task)) {
-                        Ok(()) => log::debug!("task done"),
+                        Ok(()) => log::trace!("task done"),
                         Err(_) => log::error!("task panicked"),
                     }
                 }
