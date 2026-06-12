@@ -1,5 +1,12 @@
 # Changelog
 
+### [v0.3.1](https://github.com/hoodie/mac-usernotifications/compare/v0.3.0...v0.3.1) (2026-06-13)
+
+#### Fixes
+
+* build without default features
+([f858379](https://github.com/hoodie/mac-usernotifications/commit/f8583797073f997e6e15ef6ab8d0485bd3497e5f))
+
 ## [v0.3.0](https://github.com/hoodie/mac-usernotifications/compare/v0.2.0...v0.3.0) (2026-06-13)
 
 ### Fixes
