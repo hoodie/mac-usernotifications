@@ -4,6 +4,7 @@
 
 [![Build](https://github.com/hoodie/mac-usernotifications/actions/workflows/build.yml/badge.svg)](https://github.com/hoodie/mac-usernotifications/actions/workflows/build.yml)
 [![Semver Checks](https://github.com/hoodie/mac-usernotifications/actions/workflows/semver-checks.yml/badge.svg)](https://github.com/hoodie/mac-usernotifications/actions/workflows/semver-checks.yml)
+[![dependency status](https://deps.rs/crate/mac-usernotifications/latest/status.svg)](https://deps.rs/crate/mac-usernotifications/latest)
 ![maintenance](https://img.shields.io/maintenance/yes/2027)
 
 [![Crates.io](https://img.shields.io/crates/d/mac-usernotifications)](https://crates.io/crates/mac-usernotifications)

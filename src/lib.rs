@@ -156,28 +156,6 @@ pub mod blocking {
 
 pub use futures_lite::future::block_on;
 
-/// Set the application which delivers or schedules a notification
-/// A [`RawWakerVTable`](std::task::RawWakerVTable) whose `wake` calls [`CFRunLoop::wake_up`](objc2_core_foundation::CFRunLoop::wake_up) on the main run loop.
-///
-/// The data pointer is always null; the main run loop is a global.
-mod runloop_waker {
-    use std::task::{RawWaker, RawWakerVTable};
-
-    unsafe fn wake(_: *const ()) {
-        if let Some(run_loop) = objc2_core_foundation::CFRunLoop::main() {
-            run_loop.wake_up();
-        }
-    }
-
-    unsafe fn clone(ptr: *const ()) -> RawWaker {
-        RawWaker::new(ptr, &VTABLE)
-    }
-
-    unsafe fn drop(_: *const ()) {}
-
-    pub static VTABLE: RawWakerVTable = RawWakerVTable::new(clone, wake, wake, drop);
-}
-
 /// Run a future to completion on the main thread while pumping [`NSRunLoop`](https://developer.apple.com/documentation/foundation/nsrunloop).
 ///
 /// ## Thread Safety
@@ -188,12 +166,15 @@ mod runloop_waker {
 ///
 /// **Use [`dynamic_block_on`] instead if the main thread may not be running.**
 pub fn block_on_main<F: Future>(future: F) -> F::Output {
-    use std::task::{Context, Poll, RawWaker, Waker};
+    use std::task::{Context, Poll};
 
-    let raw = RawWaker::new(std::ptr::null(), &runloop_waker::VTABLE);
-    // SAFETY: the vtable functions are correct and the null data pointer is intentional
-    // (wake_up targets the global main run loop, no per-waker state needed).
-    let waker = unsafe { Waker::from_raw(raw) };
+    // Wakes the main run loop whenever the future signals readiness, so the
+    // sleep below is interrupted early instead of busy-polling.
+    let waker = waker_fn::waker_fn(|| {
+        if let Some(run_loop) = objc2_core_foundation::CFRunLoop::main() {
+            run_loop.wake_up();
+        }
+    });
     let mut cx = Context::from_waker(&waker);
 
     let mut future = std::pin::pin!(future);

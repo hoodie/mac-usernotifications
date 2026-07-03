@@ -62,9 +62,10 @@ block2 = "0.6"
 thiserror = "2.0.18"
 futures-lite = "2.6.1"
 futures-channel = "0.3.32"
-log = "0.4.32"
+log = "0.4.33"
 futures-timer = "3.0.4"
 objc2-core-foundation = { version = "0.3.2", features = ["CFRunLoop"] }
+waker-fn = "1.2.0"
 
 [dev-dependencies]
 oslog = "0.2"
